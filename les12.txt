@@ -1,0 +1,132 @@
+---swapspace---
+free -m / -h
+swapon
+
+swap file:
+head -c -n 20m < /dev/zero > t
+mkswap t
+swapon t
++ file permissions
+swapoff t
+
+---udisks---
+luistert naar berichten van de udev daemon, als er mountable devices zijn, dan zal hij dat automatisch mounten voor jou
+/etc/udev/rules.d/
+-> rules.d VB van een lijn uit rules.d
+KERNEL=="sd*",ENV{ID_FS_LABEL}=="ROOD",ENV{UDISKS_IGNORE}="1",ENV{UDISKS_FILESYSTEM_SHARED}="1"
+
+udisksctl: monsterprogramma zoals netsh in windows, maar dan om te interageren met de udisks daemon
+Usage:
+  udisksctl COMMAND
+
+Commands:
+  help            Shows this information
+  info            Shows information about an object
+  dump            Shows information about all objects
+  status          Shows high-level status
+  monitor         Monitor changes to objects
+  mount           Mount a filesystem
+  unmount         Unmount a filesystem
+  unlock          Unlock an encrypted device
+  lock            Lock an encrypted device
+  loop-setup      Set-up a loop device
+  loop-delete     Delete a loop device
+  power-off       Safely power off a drive
+  smart-simulate  Set SMART data for a drive
+
+Use "udisksctl COMMAND --help" to get help on each command.
+
+---systemd daemon---
+soort alternatief voor het init proces
+/etc/systemd/
+system submap: root-geel.mount file inhoud
+[Mount]
+What=/dev/geel
+Where=/root/geel
+Type=vfat
+Options=... zelfde opties als voor mount
+let op de filename, het moet zijn zoals het nu staat, je mag het niet noemmen hoe je wil
+
+mounten met
+systemctl start root-rood.mount
+systemctl status root-rood.mount
+
+in systemd configuratie hebben bestanden een specifieke naam & extensie
+zoals .service, .mount, .conf, .wants,
+
+System V init (legacy)
+---systemd---
+Dé huidige manier om het init proces te doen
+
+LEGACY:
+gonzo.hogent.be (oude linux) gebruikt nog geen systemd
+na mounten van het root filesysteem, wordt er naar de /etc submap gegaan
+daar staat een cruciaal bestand inittab (dat is het eerste wat er na het switchen van kernel naar user mode gebeurt)
+
+sysinit:/etc/rc.d/rc.sysinit (een bash script, moet je maar eens doornemen, het pusht bash tot de limieten van zijn kunnen)
+
+runlevels 0->7, hoe lager het runlevel hoe minder je kan doen, bv geen GUI, geen netwerkmogelijkheden, geen multi-user, geen ...
+welke faciliteiten worden aan welk runlevel gekoppeld?
+runlevels 6 en 0, runlevel 6 = reboot, runlevel 0 = shutdown (init 0 => shutdown)
+runlevel 1: single user mode, je kan enkel als root werken op de console
+Tegenstelling
+System V: softwarecomponenten zijn achtergrondprocessen  OUD
+Systemd: bijna alles is een softwarecomponent RECENTER
+
+/etc/rc.d/init.d
+hier staat een hele collectie bash scripts, conventie: ze hebben dezelfde naam als de daemon die ze starten
+minimale argumenten: start en stop
+ander argument: restart (meestal kill -2 naar proces, dwz lees je configuratie opnieuw in)
+rc5.d: runlevel 5, GUI, netwerk, multi-user, ...
+rc3.d: runlevel 3, geen GUI, wel netwerk, multi-user ...
+in rc5.d map: vol scripts die starten met K of S,
+de bestanden die met K starten, worden gekilld bij de switch naar runlevel 5.
+Die met een S starten bij de switch.
+De scritps in rc5.d map zijn links naar de bestanden in de /etc/rc.d/init.d/ map
+
+chkconfig --list zo ga je een hele tabel krijgen een 2D overzicht van alle daemons & de runlevels waarin ze leven en die waarin ze niet leven
+
+RECENTER: (RedHat Linux manier)
+voordelen:
+niet alleen beheer van daemons, maar ook van systeemtoestanden, netwerkresources, devices, mountpunten, ..
+geen shell scritping vereist (je moet geen bash meer kennen HAHAHA), configuratie door declaratieve syntax en efficiëntere uitvoering
+ruime mogelijkheden om afhankelijkheden tussen componenten vast te leggen
+parallelle opstart van services tijdens bootfase, i.p.v. sequentieel om zo de opstartprocedure te versnellen
+kan services starten, getriggerd door events, (sockets, D-Bus, activiteit in filesysteempad), udev (plug and play), timers, ...
+mogelijkheid voor automatische herstart van gestopte daemons
+eenvoudig om elementair te beveiligen (~chroot jails)
+quota voor daemons
+
+UNIFORM BEHEER MET SYSTEMCTL
+UNIFORME LOGGING MET JOURNALCTL
+poging om verschillen tussen distributies weg te werken, maar RedHat kreeg massief invloed op de ricthing van Linux.
+GERMANY ~~~ :) ~~~
+
+https://xkcd.com/162/
+
+Linux die niet meer POSIX compatibel wil zijn is een duidelijke breuklijn tussen UNIX & LINUX
+
+Achtergrondproces heet unit in Systemctl
+Uniforme manier van toegang to verschillende softwarecomponenten
+unitfiles zijn configuratiebestanden
+/lib/systemd/system <-> /etc/systemd/system/
+alle bestanden in de /etc hebben voorrang op hun counterparts in de /lib
+ja mag ook mappen zetten in de /etc/systemd/system, op voorwaarde dat je de map extensie .d geeft,
+de inhoud van de bestanden in zo'n .d map worden toegevoegd aan hun counterpart in lib.
+
+configuratie bekijken: systemctl cat [naam-unit]
+
+!Slide 6.4.1 Units & unit types!
+systemctl get-default
+systemctl is-active graphical-target
+systemctl start graphical-target
+systemctl stop graphical-target
+
+sockets kunnen open blijven terwijl je de service die ze had geopend herstart wordt, zeer handig voor client-server model.
+doorzichtig voor de clients, s
+socket zonder service heeft geen zin
+timer  zonder service heeft geen zin
+pad    zonder service heeft geen zin
+geen chron meer, alles wordt nu met timer-units gedaan
+
+(auto)mount, swap, snapshot, (C-groups !!!) slice: units verzamelen in slice met als doel aan een verzameling componenten quota te koppelen

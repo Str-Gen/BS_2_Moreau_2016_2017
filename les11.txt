@@ -1,0 +1,149 @@
+udevd
+
+persistente naamgeving
+
+cd /sys/bus/pci/driver
+in de submappen hier, als je de identificatie van de controller omleidt naar unbind, dan wordt hij verwijderd
+als je het device terug wil toevoegen moet je de identificatie van het device omleiden naar bind
+
+[dhoogla@localhost]: /sys/bus/pci/drivers>$ ls -l ehci-pci/
+total 0
+lrwxrwxrwx 1 root root    0 May 18 08:41 0000:00:1a.0 -> ../../../../devices/pci0000:00/0000:00:1a.0
+lrwxrwxrwx 1 root root    0 May 18 08:41 0000:00:1d.0 -> ../../../../devices/pci0000:00/0000:00:1d.0
+--w------- 1 root root 4096 May 18 08:41 bind
+lrwxrwxrwx 1 root root    0 May 18 08:41 module -> ../../../../module/ehci_pci
+--w------- 1 root root 4096 May 18 08:41 new_id
+--w------- 1 root root 4096 May 18 08:41 remove_id
+--w------- 1 root root 4096 May 18 08:41 uevent
+--w------- 1 root root 4096 May 18 08:41 unbind
+
+Faken dat je devices inplugt of uittrekt
+udevadm test -a add|remove /sys/..
+
+cat /dev/oranje1 > dump
+door de device file kan je de USB stick zien als een bestand, en het ook zo behandelen
+bovenstaande lijn kopieert de hele stick naar een bestand dump.
+
+Einde H3
+
+Start H4
+4.1 Partitioning Disk Devices
+Unix: 1 grote logische boom waarin alle partities zitten
+Sommige delen van de logische boom bestaan zelfs op geen enkele schijf
+Het zijn voorbeelden van geheugenstructuren die voorgesteld worden alsof ze op een filesysteem staan
+De onderstaande 'mappen' zijn dus niet echt, het zijn afspiegelingen van geheugenstructuren
+/dev submap
+/proc submap
+/sys submap
+/tmp submap
+
+Wil je een device aanspreken op zijn filesysteem, dan moet je dat filesysteem laden => mounten
+Hoe doe? Met de mount opdracht
+Je kan mount op 2 manieren invullen
+Ofwel zeg je: ik ga de mount opdracht uitvoeren met 2 argumenten wat wil je mounten en in wat?
+mount /dev/oranje1 oranje (als je bij de nieuwe, lege map oranje staat)
+umount oranje (dan is het device weg, filesysteem niet meer leesbaar)
+
+mount zonder parameters toont welke takken van het logische filesysteem gemapt zijn uit andere bronnen
+
+het /etc/fstab bestand, hierin staan de mounts die automatisch moeten gebeuren bij opstart
+je zou er hier evenveel verwachten als de uitvoer van mount toonde
+inhoud bij mij van fstab:
+#
+# /etc/fstab: static file system information
+#
+# <file system>	<dir>	<type>	<options>	<dump>	<pass>
+# /dev/sda3
+UUID=d9fec11b-814a-45a8-b492-b548ecf0771d	/         	ext4      	rw,relatime,data=ordered	0 1
+
+dir=doelmap
+soms kom je de noauto optie tegen in een bestand als dit, dan wordt het niet automatisch gemount
+je kan dat goed gebruiken en wel als volgt:
+Maak de regel aan in fstab hoe je moet mounten
+Om echt te mounten moet je dan alleen zeggen mount /doel en mount zal eerst gaan kijken of er een lijn is voor /doel
+zoja, dan worden die opties gebruikt (dit is de traditionele UNIX manier)
+
+mountopties met de -o opdracht:
+ro: read-only
+rw,remount: geef read-write permissies en
+
+stuk van geheugen mounten als filesysteem
+
+[dhoogla@localhost]: ~>$ mkdir mem
+[dhoogla@localhost]: ~>$ mount -o size=800m -t tmpfs tmpfs mem
+mount: only root can use "--options" option
+[dhoogla@localhost]: ~>$ sudo mount -o size=800m -t tmpfs tmpfs mem
+
+Dit is een oplossing om zeker te zijn dat er niets van data overblijft na umount,
+let wel op overdrijf niet met de grootte want het stuk geheugen dat je hebt gemapt op een filesysteem
+is niet meer bruikbaar als geheugen.
+
+Loop devices:
+losetup
+mount -o loop dump oranje
+
+mount -n optie: tijdens opstart, ready-only,
+
+EXA: oefening bash, maar je mag slechts enkele commando's gebruiken, hoe verplicht je uzelf om
+chroot jails: geef aan daemons (die omwille van veiligheidsredenen in een eigen context (gebruiker) draaien), toch een view op root om enkele essentiële bestanden kan aanpassen
+
+Ik wil een deel maken waarin enkel het programma bash kan draaien
+
+CHROOT jails maken
+mkdir jail
+mkdir -p /usr/bin
+cd usr/bin
+ln /usr/bin/bash bash
+ls -l (toont nu file bash)
+stat /usr/bin/bash bash (om te zien dat het om exact hetzelfde bestand gaat)
+--ook op dit moment kan je nog geen bash gebruiken, want bash is niet monolithisch en heeft andere dependencies
+--dependencies zijn een clusterfuck van symbolische links, gewoon die links kopiëren heeft 0 zin, want je kan die links niet volgen vanuit de jail
+
+--lijst dependencies van bash op
+[root@localhost]: ~/jail/usr/lib># ldd /usr/bin/bash
+	linux-vdso.so.1 (0x00007ffcd6c42000)
+	libreadline.so.7 => /usr/lib/libreadline.so.7 (0x00007fb171f0d000)
+	libdl.so.2 => /usr/lib/libdl.so.2 (0x00007fb171d09000)
+	libc.so.6 => /usr/lib/libc.so.6 (0x00007fb171965000)
+	libncursesw.so.6 => /usr/lib/libncursesw.so.6 (0x00007fb1716f7000)
+	/lib64/ld-linux-x86-64.so.2 (0x00007fb17215b000)
+
+--cp -l gaat de symbolische links volgen bij kopie
+[root@localhost]: ~/jail/usr/lib># cp -l /usr/lib/libc.so.6
+cp: missing destination file operand after '/usr/lib/libc.so.6'
+Try 'cp --help' for more information.
+[root@localhost]: ~/jail/usr/lib># cp -l /usr/lib/libc.so.6 .
+
+[root@localhost]: ~/jail/usr/lib># ls
+libc.so.6
+
+[root@localhost]: ~/jail/usr/lib># stat /usr/lib/libc.so.6 libc.so.6
+  File: /usr/lib/libc.so.6 -> libc-2.25.so
+  Size: 12        	Blocks: 0          IO Block: 4096   symbolic link
+Device: 803h/2051d	Inode: 1050742     Links: 1
+Access: (0777/lrwxrwxrwx)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2017-05-17 17:49:06.173324268 +0200
+Modify: 2017-03-06 15:06:26.000000000 +0100
+Change: 2017-04-08 21:07:39.814757313 +0200
+ Birth: -
+  File: libc.so.6
+  Size: 1977568   	Blocks: 3864       IO Block: 4096   regular file
+Device: 803h/2051d	Inode: 1050747     Links: 2
+Access: (0755/-rwxr-xr-x)  Uid: (    0/    root)   Gid: (    0/    root)
+Access: 2017-05-18 10:05:29.188492298 +0200
+Modify: 2017-03-06 15:06:26.000000000 +0100
+Change: 2017-05-18 10:05:28.061825591 +0200
+ Birth: -
+
+
+HARDE LINK KAN ENKEL VOOR FILES, NIET VOOR DIRECTORIES, EN HET MOET BINNEN HETZELFDE FILE SYSTEEM ZIJN
+MAPPEN BESTAAN TROUWENS NIET ECHT, HET IS HET FILESYSTEEM DAT U DIE INDRUK GEEFT
+
+---ldd commando: listing dependencies---
+
+mount -B optie: HET commando om als het ware symoblische links te maken en het hele manuele gedoe over te slaan
+-R optie: recursieve optie
+
+jail opruimen:
+rm -rf * in jail map?! enorm gevaarlijk, hard links no problem, symbolische links, no problem, maar als je gemount hebt, dan gaat hij het doel van de mount weggooien
+in dit geval de echte /usr/lib, doe dat en uw systeem is om zeep binnen de 2 seconden!
