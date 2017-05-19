@@ -1,0 +1,133 @@
+van uitvoer naar cat en omgekeerd is niet OK, vooral omdat het overbodig is
+shuf -rn10 -i l-10 | cat -E
+cat t | nl
+equiv operatie aan lijn 3:
+nl < t
+
+File leegmaken
+>[filename] redirect letterlijks niets in de file
+
+Beperken van tijdelijke files::
+x='een
+declare -p x
+
+echo $x | nl
+<->
+echo "$x" | nl voer eens uit om te zien wat het verschil is
+
+nl <<< "$x" variabele meegeven aan utility
+
+tee command
+shuf -rn10 -i l-10  | tee t1 t2 | sortn -n | uniq -d
+
+RTFM:: getting information
+man -f kill: korte lijst, toont wel of er meerdere man pages zijn
+man -a kill: loop pagina per pagina door de man page
+man nr kill: toon pagina nr voor kill
+
+man -> h terwijl je man page ziet press h dan zie je de keystrokes die je kan gebruiken in man
+
+info vs man: info is herwerking van man meestal met meer voorbeelden, als je iets niet vindt
+in man zoek dan in info
+
+man -k [keyword]: zoekt in alle man pages naar keyword en geeft lijnen van man pages terug
+waarin keyword voorkomt
+
+nl --help | less: help opdr van externe opdracht zelf, lijkt op man, groter dan 1 blad?
+pipe naar less om te kunnen scrollen etc
+
+help: dient voor help bij interne commando's bv help shopt help set etc.
+help -d: verkorte vorm
+
+Linux filesystem::
+getconf PATH_MAX .
+
+tree /etc | less
+tree -d /etc | less
+tree -df /etc | less
+tree -idf /etc | less
+tree -idfL 2 /etc | less
+
+cd
+
+pushd /etc/init.d: push directory op stack
+EN
+popd: pop directory van stack
+EN
+dirs: bekijk stack
+
+proc: pseudofiletoegang tot kerneldata
+cat /proc/version
+cat /proc/uptime
+
+mkdir -p a/b/c/d maak directory en als de bovenmap voor een van de mappen nog niet bestaat
+maak die ook
+
+rmdir: verwijder directory
+
+rm -rf: recursive remove + f optie gevaarlijk want gaat alles verwijderen
+
+Hard links::
+ln commando
+ln [bron][doel]
+stat om te bewijzen dat de link echt naar hetzelfde bestand wijst
+rm [doel] dan is de link weg, maar het bestand niet
+dit zijn harde links: nadeel werken enkel binnen hetzelfde filesysteem, je kan ook geen
+harde links leggen naar directories
+
+Soft links, symbolic links::
+ln -s links leggen naar files op andere filesystemen, naar directories, ...
+rm
+
+pwd -P show physical location of a file or folder
+
+moderne linux: enorm veel gebruik van symbolische links
+
+Shell globbing::
+wildcards patronen * ? [], geen echte RegEx
+extended globbing cd /etc je wil alle .d en .conf
+ls -d
+
+ls -d !(@(*.d|*.conf))
+opmerking: extended globbing staat default uitgeschakeld bij niet interactieve shell scripts
+dus manueel aanzetten
+
+ls -l * | less
+ls -al: show all inside a directory je ziet ook . (huidige folder) en .. (bovenliggende folder)
+ls -Al: show all insdie a directory except . and ..
+
+sorteren van ls
+S: size
+t: time
+r: reverse niet recursief
+R: recursief
+-1: toon de uitvoer 1 folder per regel ipv in kolommen
+
+attributen en extended attributen
+gewone attributen worden op mapniveau bijgehouden
+extended attributen: security etc worden per file bijgehouden te zien met stat commando
+
+file determine type of files
+
+stat -f / geeft info over filesysteem, toegepast op root kan je o.a. zien hoeveel schijfruimte je nog hebt
+
+Kopiëren::
+cp {0..9} [target directory]: expansion van 0 tm 9 => 10 nieuwe files,
+copy met meerdere files moet naar 1 directory anders zal cp gwn fout teruggeven
+cp -i {0..9} [target]: interactive mode
+cp -u {0..9} [target]: update if source is newer
+cp -up
+
+Verwijderen::
+touch {00..99}
+ls {00..99}
+rm -i{00..99}
+yes y (schrijft oneindig veel keer y)
+yes y | rm -i{00.99}
+yes y | rm -i {00..99} 2> /dev/null (/dev/null is +- vuilbak, hiermee kan je dus de uitvoer onderdrukken)
+
+yes 'n
+n' | rm -iv {00..99} 2> /dev/null
+
+Bestanden decimeren: shuf pipen naar rm
+shuf -rn20 -e y y y y y y y y n | rm -iv{0..99}

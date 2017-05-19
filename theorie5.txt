@@ -1,0 +1,139 @@
+priemgetallen maken
+(rm f; x=0; while((++x)); do =y=(!(factor $x)); ((${#y[@]}==2)) && echo $x >>p; sleep 1; ((x%10))|| read; done)
+
+bg %1 (%jobnr) of bg PID
+fg
+
+in background duwen EN in gestopte toestand brengen !! ctrl-z
+gebruik bg om het in background verder te laten lopen
+
+(rm f; x=0; while((++x)); do =y=(!(factor $x)); ((${#y[@]}==2)) && echo $x >>p; sleep 1; ((x%10))|| read; done)
+vorige oplossing met 0<&- was mis, de scope van die opdracht is tss de twee ; ; waar ze tussen staat
+Nieuwe oplossing
+
+(rm f; x=0; while((++x)); do =y=(!(factor $x)); ((${#y[@]}==2)) && echo $x >>p; sleep 1; ((x%10))|| read; done 0<&- 2>/dev/null)
+filehandle 0 = stdin en die sluiten we af
+filehandle 2 = stderr en die leiden we om naar de vuilbak /dev/null
+
+(rm f; exec 0<&-; x=0; while((++x)); do =y=(!(factor $x)); ((${#y[@]}==2)) && echo $x >>p; sleep 1; ((x%10))|| read; done 2>/dev/null)
+Dit zal wel werken, met exec wordt vanaf die opdracht de body van exec uitgevoerd
+
+wait opdracht: ga kijken naar een jobnummer of procesID en doe iets als de status van die job verandert
+wait -n opdracht: doet wait voor alle background jobs
+
+voor sysadmins meestal 1 terminal per toestel en in die terminal werken met background  processen
+
+---Einde procesbeheer---
+
+---Start devices---
+/dev en /sys map
+ls -ladH /dev/* | sort | less
+b(lock) c(haracter) s(ocket) p(ipe): in uitvoer van ls duidt op type device, major & minor nummer van het device (dienen voor programmatische toegang)
+op al de bestanden in /dev kan je de unix utilities toepassen
+block & character devices: het stuurprogramma bepaalt hoe het device in de lijst staat
+blockdevices bieden gebufferde toegang, je kan er 1 byte, 100 byte, ... aan vragen
+characterdevices bieden GEEN gebufferde toegang, je kan geen andere data-eenheid gebruiken. De controller legt de data-eenheid op
+
+Naam van een attribuut wordt gebruikt als filename, inhoud van de file als de waarde voor de parameter
+Enorm veel logische links is /dev en /sys map
+
+blockdev --report
+/dev/sd* = disks via SCSI protocol
+/dev/sr* = cd & dvd read-only
+/dev/sg* = cd & dvd writers (let op is character, niet block)
+
+loop block devices maken
+cat /path to usb/ > o1 &    = kopieer alle info op de USB -> o1
+losetup --find --show o1    = maakt een nieuw blockdevice voor o1
+~ISOs werken ook zo
+
+de andere TTY's zijn ook karakterdevices
+chvt 1: grafische interface terminal
+chvt 2: virtuele terminal volledig uit grafische omgeving
+...
+chvt 8
+
+Terminal maken die reageert op elke toetsaanslag ipv op een regel + return
+trap 'stty echo icanon' EXIT
+stty -echo -icanon min 1
+while : ; do
+    k=$(dd count=1 bs=1 2> /dev/null)
+    echo -n $k | hexdump -C
+echo .
+done
+
+stty sane + return: is een redmiddel voor als je je terminal om zeep hebt geholpen door random binary uit te laten schrijven die geïnterpreteerd werd
+tput init
+tput: gaat karakteristieken van terminal opzoeken en de nodig sequentie van tekens om de opdracht die je als argument gaf uit te voeren. Het commando zal die commando's ook effectief sturen
+tput reset | hexdump -C
+
+tput smso
+tput rmso
+so = standout = bold
+
+smul
+rmul
+ul=underline
+
+Uitvoer beperken tot 1 lijn die verandert door de cursor op te slaan en ergens anders te recallen als je gaat schrijven
+((x=2**30)) ; tput sc; while ((x/=2)) ; do tput rc; tput ed; echo -n $x ; sleep 0.5 ; done
+
+pipen met stdout en stderr
+ls -l {01.99} 2>&1 1>/dev/null | wc -l
+ls -l {01..99} 2>/dev/null | wc -l
+
+$()=voer inhoud tussen () uit en plaats de uitvoer op dezelfde
+grep a $(ls 0?)
+
+grep a $(ls 1? 2> /dev/null) dit is grep zonder het juiste aantal argumenten, je leidde immers stderr om en er zijn geen files die als naam 1. hebben
+De interpolatie voegt niets toe als argument waar de file zou moeten komen. Grep heeft dan als defautl-behaviour om van stdin te lezen
+==> script hangt
+
+toevoegen van /dev/null als argument om uitzonderingsmaatregelen niet te moeten nemen
+grep a $(ls 1? 2> /dev/null) /dev/null
+
+ls -l 0? | xargs -n 3 -t grep a /dev/null
+anders als xargs de groepen maakt en er wordt per toeval 1 argument gegeven aan grep dan zal er niet getoond worden in welke file de match zit, want je gaf maar 1 file
+
+rm p; ln -s /dev/null p
+symbolische link maken voor p naar /dev/null, je kan dit gebruiken om logging waar je geen controle hebt over de code weg te werpen naar de vuilbak
+je kan het ook terug krijgen als je rm p nog eens oproept want dat verwijdert de symbolische link en in de programmacode wordt er nog altijd weggeschreven naar p
+
+File leegmaken
+cat /dev/null > ${file}
+OF beter
+> ${file}
+
+pseudodevice /dev/zero
+head -c 60 < /dev/zero | tr '\0' '-' > t
+echo '' >> t voegt een linefeed toe aan t
+
+pseudodevice /dev/random
+geeft RNG uit de entropypool
+als je meer bytes vraagt dan er in de entropypool zitten dan blokkeert de vraag
+zeer goede RNG, maar het kan lang duren om de pool te hervullen
+
+pseudodevice /dev/urandom
+geeft RNG van een andere random generator
+het is een minder goede generator, maar je kan niet tegenkomen dat je blokkeert
+head -c 80 < /dev/urandom | od -An -w4 -t d1
+
+Maak 20 random ipv4 adressen
+head -c 80 < /dev/urandom | od -An -w4 -t u1 | tr -s ' ' '.' | cut -c  2-
+
+Maak 10 random ipv6 adressen
+head -c 160 < /dev/urandom | od -An -w16 -t x2 | tr ' ' ':' | cut -c 2-
+
+ls -ladH /dev/st*
+ls -ladH /dev/st* | nl
+je zal zien dat stdout nu niet als c maar als p device wordt aangegeven
+als je het pipe karakter gebruikt dan wordt stdout gebruikt als invoer voor een volgende programma, de tussentijdse uitvoer komt niet in de terminal tercht (wat het normale gedrag zou zijn)
+
+ls /dev/fd in het proc filesysteem staat een map voor elk proces (spreek je in terminal aan via /proc/self)
+je kan daar kijken hoe het met de file descriptors zit door de inhoud van /proc/self/fd folder te bekijken
+
+
+cat kap /dev/fd/0 staart > tf
+ctrl-d
+
+cat t | tee /dev/fd/2 | wc 

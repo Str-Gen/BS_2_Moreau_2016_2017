@@ -1,0 +1,85 @@
+---Invoer uit string halen---
+<<< : syntax
+<< : bestond al
+rev <<< "$x" zal alle strings in $x omkeren
+
+rev << HGF, dan kan je input geven tot je HGF alleen op een lijn zet (een soort __END__ markering)
+rev << H'G'F dan is er weer geen interpollatie van speciale tekens
+
+
+---Devices---
+/dev map: devices als files (lijkt op /proc map die processen als files toont)
+/dev in unix en linux
+/sys in linux
+Beide mappen zijn een structuur in het geheugen. Het zijn geen echte files op disk. Dynamisch
+de structuur is hiërarchisch, om iets te weten te komen over een device moet je dus niet in kernel mode draaien
+je kan gewoon info gaan ophalen in /dev of in /sys, elke file bevat 1 attribuut
+
+tools:
+lspci
+lsusb
+lsscsi
+lsblk
+
+udevadm info
+tool om info over eender welk device te weten te komen
+haalt de bestanden uit de sys map op
+udevadmn info -q [path/symlink/name/] /dev/sda3
+-a optie: voer het commando ook uit voor ouderdevices tot je bij het root device komt
+
+udevadm info -e | grep ^P | wc -l
+-e optie: geef alles over alle devices
+
+udevadm is meer dan een utility om info te tonen, bv udevadm monitor -k
+
+traditioneel statische invulling van /dev/nodes tijdens de bootfase in kernelmodus
+tekortkomingen van deze aanpak met /dev/nodes
+-problemen treden op als er een slechte interactie gebeurt in kernel modus met het device en dat is vaak fataal
+-niet geschikt voor alle devices zoals netwerkinterfaces
+-opkomst van USB & andere plug and play
+-mapping node <-> device: inconsistente nummering van devices oplossen, anders kan je eth0 volgende keer eth1 zijn en je eth1 eth0, gwn
+afhankelijk van wie eerst geantwoord heeft
+-overbodige nodes
+-beperkt aantal major numbers
+-kernel heeft drivers nodig voor elke potentiële, niet noodzakelijk aanwezige devices
+
+---Moderne optie: udev---
+Linux drivers: enkel herkenning van device en attributen in de kernel, de rest van de noodzakelijke handelingen in usermodus uitvoeren
+communicatie via IPC.
+Regels voor consistente naamgeving: extra Symlink attribuut met naam voor toestel
+zie slides voor udev deel !!!
+Voorbeelden
+cd /lib/udev/rules.d (officiële map, waar je van moet blijven, elke update gaat verloren bij de volgende restart)
+cd /etc/udev/rules.d (deze map heeft voorrang op /lib )
+die twee mappen worden samengesmolten en de als dezelfde file in de /etc en in de /lib bestaat, zal die in de /etc bepalen wat gebeurt
+conditionals en directives: minstens 1 conditional per lijn
+Als alle conditionals op een regel waar zijn dan worden alle directives uitgevoerd
+USB naamgeving
+KERNEL=="sd*",ATTRS(serial)=="AADDEGEIEIGE9939100",ATTRS{idVendor}=="...",ATTRS{idProduct}="..." SYMLINK+="wit%n"
+ETH naamgeving
+KERNEL="eth*", DRIVERS="?*", ATTR{address}="MAC-adr", NAME="eth3"
+
+---Meest gebruikte conditionals en directives---
+Alle namen kunnen voor beide gebruikt worden
+conditionals: == en !=
+directives: = en +=
+
+KERNEL: officiële devicenaam
+SUBSYSTEM: type device (tty, usb, firewire, scsi)
+SUBSYSTEMS: type device verwijzing naar een ouderdevice, ergens in de boom boven jou moet een device van type zijn
+ACTION!= of == "add of remove" "connect of disconnect"
+ATTR: eigenschappen die door de kernel vastgesteld zijn <-> ENV: environment variabelen (die bijkomend gegenereerd zijn door udev)
+GROUP:
+MODE: permissions instellen
+GOTO: jump naar een label verderop
+IMPORT{builtin}: haal naam waarde paren op uit een andere file en voeg toe (~include) /lib/udev/hwdb.d
+IMPORT{program}: "/bin/sh -c"
+PROGRAM="/lib/udev/rename_device": program wordt gebruikt om andere programma's uit te voeren
+RUN+="...": voer extern programma uit bv. om drivers te laden
+
+---Hardware detectie en drivers laden---
+grep "100E" $(find . -name modalias)
+udev haalt uit modalias vendor en type van een device en gaat kijken of er een driver is en of die geladen is
+udev gaat kijken in -> /lib/modules (map waar alle modules staan die laadbaar zijn)
+modinfo ...
+modules.alias wordt eenmalig ingvuld bij opstarten en als er nieuwe toestellen / drivers worden toegevoegd komen er entries bij

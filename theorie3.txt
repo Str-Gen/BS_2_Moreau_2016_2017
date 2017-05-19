@@ -1,0 +1,111 @@
+touch -ct 01311234 {0..9}
+-c = nocreate
+-t = timestamp MoMoDDHHMM
+
+Inhoud van 2 bestanden side-by-side zien
+paste x y
+comm x y output in 3 kolommen
+Kol1: lines unique to file1
+Kol2: lines unique to file2
+kol3: lines that appear in both files
+
+diff -iwB: ignore case ignore whitespace ignore blank lines
+-c [nr] optie: geef nr lijnen voor en na verschil
+
+wc -l word count program line count option
+
+paste -s -d \;:. v w x y z
+
+paste -s -d '' v = inhoud van een bestand aan elkaar joinen zonder delimiter
+
+--EXA
+matrix-inversie
+
+shuf -i 0-9 -rn36 | xargs -n6 >x = toon matrix in file x met 6 kol
+
+shuf -i 0-9 -rn36 | xargs -n1 >x2 = toon matrix in filex2 met 1 kol
+
+shuf -i 0-9 -rn36 | xargs -n1 | split -l 6
+
+totaal:
+shuf -i 0-9 -rn36 > x2
+xargs -n1 < x2 | split -l 6
+paste -d ' ' xa* // getransponeerde
+xargs -n6 <x2 // originele in 6 kolommen
+-- EIND EXA vraag
+
+split opties nakijken  bv -d decimale nummering van bestanden
+-C optie: splitsen op max split file size
+
+aan mekaar kleven met cat naam file + wildcard > newfile
+
+sort kan overweg met bestanden ter plaatse aanpassen
+gebruik -o vlag
+
+sort -t \; -k3,3 -o file file
+dit sorteert file met delimiter ; op van kolom 3 tot kolom 3 (dus enkel kolom 3)
+
+join -t \; -1 3 -2 2 file1 file2 -o 2.4,2.1,1.2,1.4,1.1 | head
+
+join -t \; -1 3 -2 2 file1 file 2 -v 2
+lees de man voor -v
+
+locate commando
+find commando
+find /usr/share -name "*TODO*"  \(-size +10k -o -mtime -200\)
+haakjes escapen omdat ze voor bash betekenis hebben
+lees de man voor -printf optie
+
+UNIX: verschil tussen change time & modified time
+change time = gewijzigde attributen
+modified time = gewijzigde inhoud
+
+find /usr/share -name "*TODO*" -size +10k -mtime +200 | xargs -n3  wc
+xargs is het middel om args te splitsen in groepen
+xargs opties om te bekijken
+-p
+-n
+
+find /usr/share -name "*TODO*" -size +10k -mtime +200 -ok mv {} doel
+find /usr/share -name "*TODO*" -size +10k -mtime +200 -ok wc {} \;
+-ok = find interative mode
+{} = placeholder
+\; beëindig opdracht
+find /usr/share -name "*TODO*" -size +10k -mtime +200 -exec wc {} \;
+-exec = voer de opdracht zeker uit
+
+find /usr/share -name "*TODO*" -size +10k -mtime +200 -exec wc {} \+
+(staat ook in slides)
+
+find /usr/share -name "*TODO*" -size +10k -mtime +200 -printf "wc %p\n" | bash
+stuk voor de pipe zet commando's klaar na pipe laat bash uitvoeren
+
+cat
+optie -T zie ook tab in uitvoer van cat
+optie -E eindig elke lijn met een dollar sign zo kan je zien of een lijn niet eindigt met spatie(s)
+optie -v toon alle rommel karakters: backspace tab etc
+
+tac commando
+doet wat cat doet maar print in omgekeerde volgorde
+
+wc -L = geef per bestand de grootte van de grootste lijn
+strings -n $(wc -L competitors.csv) competitors.csv = toon die lijn
+strings -n1 file = toon van bestand file elke lijn met minstens 1 karakter in
+
+head en tail commando's
+-n [nr]: toon eerste nr lijnen (impliciete +)
+-r -[nr]: toon alles behalve laatste nr lijnen
+-c: karakters
+
+EXA
+verwijder de laatste 100 bytes van bestand 10 en print het resultaat
+head -c -100 tien | hexdump -C
+einde EXA
+
+windows line endings -> unix line endings
+tr -d '\r' < file | hexdump -C
+
+whitespace vervangen
+echo 'x       y      z ' | tr ' ' ';'
+whitespace vervangen + squeeze
+echo 'x       y      z ' | tr -s ' ' ';'

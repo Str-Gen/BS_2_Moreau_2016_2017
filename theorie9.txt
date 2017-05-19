@@ -1,0 +1,165 @@
+Exit codes
+exit 0 = correcte status
+1 byte voor de exit status
+variabele $?
+
+man kill -l [nr>128]
+de nummers boven 128 worden gebruikt door kill als signaalnamen
+
+gebruik geen if / while met (($?==0))
+
+het test-programma: check file types and compare values
+let op string vergelijking, is vergelijking string met patroon, niet noodzakelijk letterlijke string compare
+test kan ook rechtstreeks werken met de timestamps van bestanden om te vergelijken
+
+maak bij test gebruik van [[...]] ipv [...]
+((...)) kan ook gebruikt worden bij test, alles tussen (()) wordt numeriek geïnterpreteerd.
+
+voorbeelden:
+schrijf enkel de lijnen uit een bestand die een 'ee' of een 'oo' bevatten
+while read ; do [[ $REPLY == *@(ee|oo)* ]] && echo $REPLY ; done < dido
+$REPLY is de default uitvoer van read
+== : beantwoorden aan een patroon
+@() : extended globbing, halfway between globbing and regexp
+
+while read ; do [[ $REPLY =~ ([aeiou][^aeiou]*){12} ]] && { echo $REPLY ; break; } ; done < dido
+Wij mogen break gebruiken in onze shell scripts no problem
+
+test -v string optie: hiermee ga je checken of de variabele string ingevuld is, ga niet testen op de inhoud dus geen ${var}, daarvoor gaat test -v altijd true geven
+doe de test -v var
+
+&& en ||
+if [[ ( test1 || test2 ) && test3 ]] : dit is het gekende gedrag maar er wordt maar 1 exitstatus gegenereerd de tests moeten allemaal uitgevoerd worden
+if ( [[ test1 ]] || [[ test2 ]] ) \
+&& [[ test3 ]] : als bash ronde haken ziet roept hij een subshell op, dit commando gaat de exitstatussen van elk deel tussen [[...]] bijhouden, LAZY EVALUATION
+if { [[ test1 ]] || [[ test2 ]] ; } \
+&& [[ test3 ]] : als je accolades gebruikt moet je ; gebruiken
+
+schrijf geen if testen meer, onderstaande is volledig equivalent
+cmd && { cmd_true_1 ; cmd_true_2 ; ... ; } \
+    || { cmd_false_1 ; cmd_false_2; ... ; }
+logica van dit construct: als cmd waar is, dan moet het deel na && ook waar zijn om te voldoen
+als cmd niet waar is dan kan && niet meer voldoen, maar || wel dus gaan we naar dat deel
+
+; && en || hangen allemaal instructies aan elkaar
+; onvoorwaardelijk
+&& L-op true
+|| L-op false
+
+als je een deel van een bash script verpakt in ronde haken en je gebruikt daar het exit commando dan is dat waardeloos
+je gaat die exit gebruiken om uit de subshell te gaan, wat sowieso ging gebeuren
+
+---snel hulp vinden over bash syntax---
+help case
+help [
+help [[
+help "("
+help "(("
+
+---case expressie in bash---
+case 458 in
+        *0*) echo 0 ;;&
+        *1*) echo 1 ;;&
+        ...
+esac
+zonder &: conventie van bash is voer enkel de eerste voorwaarde die waar is uit
+met &: conventie van bash is nu voer elk blok code dat true teruggeeft uit
+
+derde optie
+;& doe alle instructies vanaf de eerste voorwaarde die voldeed
+
+je mag die conventies ook mengen
+case 458 in
+        *0*) echo 0 ;;&
+        *1*) echo 1 ;;&
+        *2*) echo 2 ;&
+        *3*) echo 3 ;;
+        *4*) echo 4 ;;&
+esac
+
+---for-lussen---
+
+for var in ... ; do
+...
+done
+ideaal om data woord per woord (een woord is een sequentie tussen delimiters) te verwerken
+
+for (( ...,... ; ...,...; ..., ... )) ; do
+...
+done
+synoniem voor
+(( ...,... ))
+while (( ...,... )) ; do
+...
+(( ...,... ))
+done
+
+--while lussen---
+rm -f log
+while read lijn ; do >> log ; done < bestand
+dit werkt enkel om een bestand volledig te verwerken en op elke lijn dezelfde operatie uit te voeren
+performantieprobleem elke keer dat bash >> tegenkomt moet hij het bestand opnieuw openen en bewegen naar het einde van de file
+voor lange log files is dit erg nefast
+
+WERK MET FILEDESCRIPTOREN
+file descriptor toekennen aan een variabele vermijdt dat je zelf een vrij nummertje moet kiezen, maak daar gebruik van
+exec {fd}< bestand
+while read lijn <&${fd} ; do ... ; done
+exec {fd}<&-
+bij file descriptor, schrijven naar uitvoer met >, niet met >>, een file descriptor schrijft altijd aan het einde van het bestand
+kopie van file descriptor 1 (stdout) is ook mogelijk, denk daar aan
+exec {tmp}>&1
+exec 1>&{tmp}-
+
+volledige sequentie
+exec {fd}< bestand
+exec {tmp}>&1
+while read lijn <&${fd} ; do ... ; done
+exec {fd}<&-
+exec 1>&${tmp}-
+
+string teken per teken verwerken zie slide voor oude methoden
+while read -n1 ; do ... ; done <<< "$string"
+
+while read -n1;do echo $REPLY;done <<<$x
+
+---Uitvoer van een programma verwerken---
+lijn per lijn:
+opdracht | { while read lijn ; do ... ; done
+...
+} deze laatste accolade dient om toegang te behouden tot de variabelen die aangemaakt, verwijderd of aangepast werden in het blok van de while
+, meestal staat die laatste { helemaal op het einde van het script
+
+while read lijn ; do ... ; done < <(opdracht)
+eerste < : open file
+<() : proces substitutie
+
+exec {temp}< <(opdracht)
+while read lijn <&${temp} ; do ... ; done
+exec {temp}<&-
+
+PROCESS SUBSTITUTION & FILE DESCRIPTOREN ZIJN TWEE VAN JM'S DADA'S
+
+---Tijdelijk files maken ipv werken met process substitution---
+het mktemp programma
+x=$(mktemp -u 123XXX3456XXX)
+
+trap functionaliteit om opkuis van tijdelijke bestanden te realiseren
+herinner priemgetallen zoeken:
+i=0 ; while ((++i)) ; do t=($(factor $i)) ; ((${#t[@]}==2)) && echo $i ; done
+( trap 'echo na $((SECONDS -s))s priem\($n\)=$p' 10 2 ; trap ' ' 15;  i=0; n=0; s=$SECONDS; while ((++i)) ; do t=($(factor $i)) ; ((${#t[@]}==2)) && { p=$i ; ((n++)) ; } ; done ) &
+Signaalhandler, dit doet niets van I/O, met trap doe schrijf je een signaalhandler, signalen 10 en 12 mag je zelf definiëren
+kill -10 % zal zeggen: na 32s priem(2848)=25889
+
+signaalhandler voor signaal 9, mag niet, voor andere signalen zelfs voor 15 wel, voor signaal 0
+Je kan deze gebruiken om ook de opkuis van bestanden te regelen zonder dat nadien zelf manueel te moeten doen!!!
+
+Signaalhandling vervolg (les 10)
+
+debuggen van shellcode
+set -x set +x of bash -x [script]
+proberen het aantal opdrachten tussen set -x en set +x zo klein mogelijk te houden
+
+(trap ': i=$i s=$SECONDS' DEBUG; i=0; n=0; while ((++i)); do f=($(factor $i)) ; ((${#f[@]}==2)) && { set -x ; ((n++)); p=$i; set +x ;} ; done)
+
+set -x en set +x

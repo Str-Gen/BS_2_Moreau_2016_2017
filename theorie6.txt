@@ -1,0 +1,126 @@
+---EXEC---
+
+exec [FD] [<|>|<>] [bestandsnaam]
+
+read lijn <[file]; do echo $lijn (leest maar eerste lijn)
+while read lijn ; do echo $lijn ; done < tel (leest wel alle lijnen, maar dit is geen mooie manier om dat te doen)
+
+read lijn <&3; echo $lijn
+file descriptoren werken anders, als je dit opnieuw uitvoert ga je de tweede lijn krijgen en dan de derde etc. Dat gebeurt niet met read
+
+fd afsluiten exec [FD]>&-
+
+exec [FD]>>[file] bij openen fd als je >> gebruikt zal de file niet overschreven maar aangevuld worden
+
+read -n1 k <&5 ; echo $k
+read -n 0 >&5; cat
+
+exec {fd}<[filename]
+{[varname]} geeft nummer terug maar je weet niet wat
+read lijn <&$varname om uit bestand te lezen (eerste lijn)
+
+exec {fd}<&3 file descriptor tijdelijk opslaan in een andere file descriptor
+exec 3<[filename]
+
+exec 3<&${fd}- keer terug naar een vorige staat van je file descriptor die je eerder had opgeslagen
+
+exec ${fd}<&3 ; exec 3<&4 ; exec 4<&${fd}- file descriptoren omwisselen
+fd 1 & fd 2 omwisselen, waarom zou je dat doen?
+bv standaarduitvoer & fouten scheiden
+{fd}<&1 1<&2 2<&${fd} [commando] | tee t
+dit werkt gedurende de leeftijd van de volgende opdracht
+wil je dat langer aanhouden dan moet exec gebruiken (op elk van de eerste 3 stukken)
+
+
+exec 1>/dev/pts/1 (leidt uivoer van deze pseudoterminal naar een andere pseudoterminal)
+exec 2>/dev/pts/3  (eigen terminal toont noch invoer noch uitvoer)
+dit mag je niet doen in een interactieve sessie, het valt niet te managen
+fd 255
+exec 2>&255
+exec 1>&255 (hiermee herstel je je standaardkanalen)
+
+meerdere files in file descriptor
+i=0; for f in $(ls 0?); do exec {t[i]}<$f; ((i++)) ; done
+declare -p t
+declare -a t='([0]="10" [1]="11" [2]="12")'
+read lijn <&${t[6]}
+for x in ${t[@]} ; do eval "$x<&-" ; done
+
+---Named pipes---
+mkfifo commando
+mkfifo [naam]
+(in een andere terminal) exec 3<p (lezen met fd3 uit pipe)
+exec 3>p
+lees ook over blokkering van pipes
+nuttig voor IPC
+
+---HOOFDSTUK SHELLSCRIPTING---
+
+Stappenplan voor de uitvoer van een Bash script
+1. parser: je mag eigenlijk zaken zoals omleiding gelijk waar in de regel schrijven, dit komt eerst aan bod
+
+2. brace expansion:
+{00..8..2}
+{000..8..2}{a..d}
+{{0..9},{a..f}}{{0..9},{a..f}} (maak alle mogelijk hex waarden tss 00 & ff)
+
+x=15
+y=20
+echo {$x..$y}
+(werkt niet zoals verwacht omdat brace expansion zo vroeg gebeurt)
+
+x=15
+y=20
+eval "echo {$x..$y}"
+(werkt wel zoals je zou willen)
+
+3. tilde expansion (let dus op met strings waar een ~ in voorkomt)
+
+4. parameter expansion
+
+5. command substitution !!!
+$( ) of ` `
+De uitvoer van de de opdracht tussen de tekens zal terug ingepast worden op de plaats in het hoofdcommando
+dubbele quotes rond $() waarom zou je dat doen?
+behoud van de whitespace die in de uitvoer van $() bestaat
+
+: de zinloze opdracht
+: doet niets, maar heeft wel de eigenschap om als boolean telkens true te zijn
+ls <(:) dit creëert een file descriptor die verwijst naar een named pipe
+dit wordt gebruikt om de uitvoer van een opdracht in een named pipe te stoppen om later
+
+skiërs
+paste -d \; <(head competitors.csv | cut -d \; -f4) <(head competitors.csv | cut -d \; -f1)
+maakt een tijdelijk bestand aan dat zichzelf zal opkuisen als het niet meer nodig is
+
+Je mag dat ook nesten
+grep -f <(grep -f <(cut -d \; -f3 winners.csv | sort | uniq | xargs printf ";%d;\n") competitors.csv | cut -d \; -f2 | sort | uniq -d) competitors.csv
+
+x=0 ; wc -l lees tel tien | while read ; do ((x++)) ; done
+echo $x
+telwerk gebeurt in subshell en wordt niet teruggegeven naar boven dus de uitvoer van bovenstaande 2 commando's is 0 (de startwaarde van $x)
+oplossing: accolades over het hele domein waar je die variabele aangepast hebt, maar het is een lelijke oplossing
+x=0 ; wc -l lees tel tien | {while read ; do ((x++)) ; done; echo $x}
+
+andere oplossing
+while read ; do ((x++)) done < <(wc -l lees tel tien)
+die twee < < hebben niets met elkaar te maken
+er gebeurt omleiding met de eerste en de tweede die dient voor command substitution
+
+x=0; while read; do ((x++)) ; done < <(wc -l lees tel tien)
+echo $x
+geeft nu wel het juiste resultaat
+
+eerste | tweede (subshell)
+< <() is in dezelfde shell
+
+de mooiste oplossing
+exed {fd}  <(wc -l lees tel tien)
+x=0 ; while read <&${fd} ; do ((x++)) ; done
+
+file descriptoren performantie
+lezen: maakt niet uit
+schrijven: als je een file descriptor op voorhand opent
+en je gaat in een lus dikwijls naar die file achter de fd schrijven gebeurt dat veel efficiënter dan als je de file telkens opnieuw zou openen om naar te schrijven
+
+eerste > >(tweede)

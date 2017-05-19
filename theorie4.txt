@@ -1,0 +1,80 @@
+Intermediate commands
+head -20 $file | nl | tr 'a-z' 'A-Z'
+tr 'aeiou' 'ioeua' evenveel letters voor arg 1 als arg 2
+tr 'aeiou' ':.' => a -> : eiou -> .
+tr -dc '0-9' file
+whitespace wegwerken met cut
+
+cut met karakters
+-c = op karakters    ls -l | cut -c 2-9,40-
+-f = op kolommen     cut -d \; -f 2 --complement < c
+
+zie slides: strings, od, hexdump, sort (-c/-C)
+Alle competitors die minstens 1 keer een wedstrijd gewonnen hebben
+join -t \; -1 3 -2 2 -o 2.1 w c | sort | uniq | sort -nr | head -10
+
+grep BEL file, lijn beantwoordt aan regex als er ergens in de lijn BEL voorkomt
+grep -e BEL$ -e NED$ file
+grep -vf
+grep -x
+grep -A1
+grep -v
+
+bij grep gaat het heel veel om de opties
+let op als je wil killen met grep
+
+Perl one-liners op de cmd line
+cut -d \; -f4 < w | sort | uniq -c | perl -ane 'print; $s=$F[0]; END {printf "%7s\n",$s}'
+
+check perl cmd lines opties
+-e
+-n
+-a
+
+xargs filtering: gaat lijn per lijn invoer van bestand aan elkaar kleven en / of in stukken hakken
+ls -l 07 | xargs -t echo
+ls -l 07 | xargs -n 3 -t echo
+ls -l 07 | xargs -n 3 -p echo
+
+File modes and permissions
+chown
+chgrp
+chmod
+
+chmod g+w, g-x, g+r file
+3 bits per groep -> octale notatie
+chmod 740
+
+default permissie-masker
+umask (-p complement) -S
+
+eigenlijk 4 groepen van 3 bits, geen 3; rode kolom op slide 2.17
+allereerste bit = set user id bit
+tweede bit = groepen set guid bit
+derde bit = sticky bit, restricted bit
+
+Listing and manipulating processes
+ps
+echo $$
+pstree (vi interface gebruik /woord om te zoeken in het bestan)
+pgrep
+kill -l
+kill -9 PID = kill onmiddellijk proces met PID (voor -9 zie uitvoer van kill -l)
+ronde haakjes rond bash script () -> doe script in achtergrond d.i. een apart proces met een eigen ID
+volg dynamisch groeiend bestand: tail -f of beter tail -F
+
+Meestal 1 terminal per toestel: dus dikwijls processen naar achtergrond sturen
+jobs en jobs -l tonen alle achtergrondprocessen van die je in die terminal hebt gestart
+kill -18 %1 of %2 of ... of %+ of %
+%- en %+ op EXA!
+
+CTRL-Z : stuur proces naar achtergrond
+fg commando
+
+je bent niet root, je wil wel root zijn: roep een terminalsessie op als root
+su ~
+suspend is zoals ctrl-Z
+suspend -f laat wel toe om ctrl-z toe te passen
+nut van suspend -f is om te switchen tussen users zonder telkens opnieuw het paswoord in te moeten geven
+
+(x=0; 1>&- ; while((++x)); do y=($(factor $x)); ((${#y[@]}==2)) && echo $x; sleep 0.5; ((x%10)) || read; done ) > r 2> /dev/null

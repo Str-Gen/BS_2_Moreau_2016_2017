@@ -1,0 +1,118 @@
+Bash scripting laatste les
+
+Rekenkundige substitutie
+echo $((024)) = 20 (octaal)
+echo $((0x29)) = 41 (hex)
+echo $((3#21022)) = 197
+echo $((64#@)) = 62
+
+set commando
+set a b c
+echo $2 => b
+set overschrijft de bestaande parameterlijst
+
+set $(cat tel) (enkele ronde haken = interpreteer als commando)
+inhoud tel:
+een
+twee
+drie
+...
+tien
+echo $1 => een
+echo $5 => vijf
+echo $10 => een0 ?! => echo ${10} => tien
+
+set -- optie: alles wat hierna volgt moet als paramter worden geïnterpreteerd, niet als commando
+(moest er per toeval een word zijn dat start met - dan zou set dat zien als een optie niet als een woord)
+
+shift commando op parameterlijsten: behandel de parameterlijst als stapel
+
+set overschrijft steeds de hele parameterlijst
+
+echo ${@} => toon de hele, huidige parameterlijst
+echo ${#@} => conventie # = lengte string bij gewone variabele, toegepast op @ krijg je de lengte van de @ lijst
+verkorte vorm $#
+
+slice vd parameterlijst: ${@:2:2}: vanaf 2de parameter geef 2 parameters => de tweede en derde parameter (telt vanaf 1, niet vanaf 0)
+
+parameter wijzigen in de lijst? set -- ${@:1:5} ${@:6}
+set -- ${@:1:5} "iets anders" ${@:6}      (voegt een parameter tussen met inhoud iets anders)
+
+while [["${@}"]] ;do echo $1; shift ; do
+(loop de hele lijst af, destructief)
+
+for x in "${@}" (foreach)
+for ((i=1;i<=$#;i++)) (eigenlijk ook foreach, for is met arithmetic substitution)
+
+for ((i=1;i<=$#;i++)); do echo $i ${@:i:1}; done
+echo ${@:-1:1}
+
+onverwacht gedrag van shift: oneindige lus
+shift met aantal: shift 5 en de lijst is geen veelvoud van 5 => oneindige lus
+als het shift commando niet volledig uitgevoerd kan worden dan doet het niets, ook niet de mss overige 4 elementen shiften
+$? = de returnwaarde van een commando (0 = success, 1 is failure)
+
+Parsing uitvoer & invoer vanuit tabellen, niet meer met de parameterlijst
+tabellen van bash gedragen zich vooral als hashes in perl
+geïndexeerde tabel: enkel numerieke sleutels
+associatieve tabel: ook strings als sleutel mogelijk
+
+t[5] = aap
+tabel tonen? gebruik declare -p
+t = ([2]=kat [7]=hond) => gooi t weg, stop op de gegeven indices de waarden die je opgaf
+t += ([2]=kat [7]=hond) => behoud de inhoud van t
+
+unset t[3], doet soms niet wat je verwacht, dit doet eerst file globbing, is er een t3 file?
+gebruik unset ALTIJD met " " => unset "t[3]"
+waarde uit tabel halen: ${t[index]}
+
+echo "${t[@]}": opsomming van de values, de " " worden gebruikt om te vermijden dat variabelen waar spaties in voorkomen verkeerd behandeld worden
+echo "${!t[@]}": opsomming van de keys
+
+[[ -v x ]] && echo bestaat || echo bestaat niet
+-v test of variabele bestaat
+er is geen parametersubstitutie op die x dus "x[index]" is niet nodig (vreemd genoeg)
+
+declare -A inv (mijn tabel mag string geïndexeerd zijn)
+for i in ${!t[@]} ; do inv[${t[i]}] = $i; done
+
+Vraag Jonas: @ sign als index voor 1 element? Afgeraden edge-case
+
+echo ${t[index]}
+echo ${#t[@]} => geeft aantal effectief ingevulde elementen
+echo ${t[@]:-1} => geef laatste elemente
+echo ${t[@]:5:1} => geef
+
+t=([1]=een [2]=twee [4]=vier [8]=acht [16]=zestien)
+echo ${t[@]:-1:1}
+echo ${t[@]:-2:1}
+rare uitvoer, er wordt vergeleken en dan worden relatieve waarde teruggegeven
+onbruikbaar!!
+
+mapfile commando: default leest van stdin
+mapfile t
+stopt lijn per lijn in tabel (lijnscheidingsteken wordt bewaard)
+
+mapfile -t t (lijnscheidingsteken wordt niet meegenomen)
+
+mapfile -t t < <(grep -E \([aeiouy)[aeiouy].*\){4} dido)
+dit stopt de uitvoer van de grep in een tijdelijk bestand en dat bestand wordt gebruikt om lijn per lijn in te lezen in het t bestand, zonder de newlines
+
+mapfile -s 100 -n 5 -O 10 -t t < competitors.csv
+eerste 100 lijnen interesseren mij niet, dan wil ik 5 lijnen lezen uit competitors en plaats ze op de indices vanaf 10 in de tabel
+
+Speciale variabelen
+$0
+$?
+$$
+$-
+$IFS
+$REPLY
+$BASHOPTS
+$SECONDS
+typisch vb: s=$SECONDS vóór lus
+echo $(($SECONDS-s)) na lus, verschil is hoe lang de lus heeft geduurd in seconden
+
+gedetailleerde exitstatus
+commando's die met pipes aan elkaar hangen overschrijven telkens $?
+PIPESTATUS ingebouwde variabelen, houdt exitstatus bij van de commando's apart

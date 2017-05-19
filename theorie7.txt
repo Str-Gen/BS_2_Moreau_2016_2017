@@ -1,0 +1,163 @@
+Shell script basics
+---Command substitution & process substitution ---
+
+shuf -rn120 -e {a..z} | xargs -n 6 | tr -d ' ' | tee >(grep -n a > a) >(grep -n b > b) >(grep -n c > c) | nl >d
+
+---Functies---
+
+f () { wc -l tel w ;}
+f () { echo $2 $1 ;}
+f () { echo $2 $1 ; return 200 ; }
+return waarde zit in de $? variabele
+return waarde moet integer zijn tussen 0 & 255
+
+f () { declare x=aangepast ; echo tijdens: $x ;}
+met declare of local kan je die variabele beperken tot de functiescope
+
+declare -f lijst alle gedefinieerde functies op
+
+ingebouwde functies gebruiken variabelen, maar let op ze gebruiken die variabelen globaal, dwz als jouw variabele dezelfde naam heeft dan zal de functie die inhoud overschrijven !
+
+source commando: execute commands from a file in the current shell
+shorthand voor source is het . karakter => . naam
+de whitespace tussen . en naam is verplicht
+
+er zijn ook nog functieatttributen zoals read-only
+
+variabele of functie bewust weggooien
+unset -f f behandelt f als functie
+unset -v f behandelt f als variabele
+unset f    behandelt f als variabele
+
+---Assignatie---
+x=...
+declare x=...
+variabele gebruiken, laat ze vooraf gaan door $teken
+
+declare -u var= alles wat je in var stopt zal naar uppercase omgezet worden, bijvoorbeeld handig als je strings case-insensitive wil behandelen
+
+export of declare -x conversie naar environment variabele
+
+variabele leegmaken y=
+variabele vernietigen unset y
+
+variabele concateneren
+y=iets
+z=343
+z+=57
+nu zit in z niet 400 maar 34357
+
+echt optellen
+((z+=57))
+zal wel optellen, met (()) voer je eigenlijk een ander soort substitutie uit
+
+---Read---
+read < <(...)
+eerste: < file omleiding
+tweede: < proces substitutie
+
+read <<< "$x"
+
+read < file
+declare -p REPLY
+
+read a b c < file
+gaat lijn uit file lezen, scheiden op whitespace en die kolommen in respectievelijk a en b stoppen al de rest komt in c
+
+delimiter aanpassen ifs variabele aanpassen (lelijk want wordt bewaard en dan moet je onthouden om die variabele terug te zetten)
+declare -p IFS
+
+oplossing
+IFS=\; read a b c < competitors.csv
+zo geldt IFS enkel op het commando net erna
+
+wil je IFS instellen voor meer commando's
+stop commando in functie
+f () {... commando waarin je IFS anders wil gebruiken dan default}
+IFS=\; f
+zo gaat IFS goed gebruikt worden voor de twee opdrachten
+
+y= iets
+dit doet y=(niks) en dan probeer je commando iets te gebruiken
+y =iets
+dit doet commando y met als parameter =iets
+
+read zonder file descriptor gaat lezen uit fd0
+
+read -n10 y   lees 10 karakters of tot lijnscheidingsteken
+read -N10 y   lees 10 karakters don't care about lijnscheidingsteken
+er zijn nog opties voor read, lees de man page (of de slides)
+read -t
+read -n1 y <<< $x
+
+let wel op read leest niet sequentieel, als je read twee keer na elkaar oproept op hetzelfde bestand / variabele krijg je hetzelfde antwoord
+
+---Echo---
+echo ${x#*e}  non-greedy
+echo ${x%e*}  non-greedy
+echo ${y##*0} greedy
+echo ${x%%e*} greedy
+
+echo ${PWD%/*}
+echo ${PWD#${PWD%/*}/}
+echo ${PWD##*/}
+echo ${y//@(oo|ee)//@@}    de @(oo|ee) is gebruik maken van extended globbing
+echo ${y/#}    patroon moet vooraan in string staan
+echo ${y/%}    patroon moet achteraan in string staan
+echo ${y/+(0)}
+
+echo ${y-default}              als y leeg is maar wel bestaat print dit niets
+echo ${y:-default}             als y leeg is of niet bestaat print dit default
+maar y is niet ingevuld met default, je print het enkel
+${y:=ls}
+dit vult y wel in, maar voert in dit geval y ook uit, dus ls wordt gedaan
+wil je niet dat het commando wordt uitgevoerd
+: ${y:=ls}
+
+accumumlator
+s= ; for x in $(cat tel) ; do echo s+=${s:+"-"}$x ; done ; echo $s
+
+: ${s?iets}
+unset s
+: ${s?iets}
+en : ${s:?iets}
+deze gaan bash: s: iets schrijven als iets niet bestaan ? en gaat dat ook schrijven als s leeg is als je :? hebt gebruikt
+
+echo ${x^} eerste karakter van x => uppercase
+echo ${x^^} alle karakters van x => uppercase
+echo ${x,} eerste => lowercase
+echo ${x,,} alle => lowercase
+echo ${x^^[karaktergroep]}
+echo ${x^^[^karaktergroep]} negatie vd karaktergroep
+
+echo ${x:5:7} vanaf karakter 5 neem 7 karakters
+echo ${x:(-15):-7}
+echo ${x: -15: -7}
+echo ${x:-15:-7}
+
+
+---pointermechanisme---
+a=1
+b=2
+c=3
+
+y=B
+echo ${y}
+echo ${!y}
+
+!=deref
+
+L=a
+echo ${!L}
+echo ${!L*}
+
+kw () { : ; }
+a=10
+kw () { echo $(($1*$1)) ;}
+kw() mag ook
+
+kw a
+echo $a
+a is niet aangepast
+
+kw() { eval $1=$((${!1}*${!1})) ; }
